@@ -1,0 +1,68 @@
+sequenceDiagram
+    actor User
+    participant Client
+    participant Server
+    participant FirebaseDB
+    participant OpenAI
+
+    User->>Client: Login with credentials
+    Client->>Server: REQ: User Login
+    Server-->>FirebaseDB: REQ: Authenticate Login
+    FirebaseDB-->>Server: RES: { access_token, username, role }
+    Server-->>Client: RES: { access_token, username, role }
+    Client->>Server: Initialize socket with access_token
+    Server-->>Client: Socket connection established
+    
+    rect rgb(240, 240, 240)
+    User->>Client: Open Chat Room
+    Client->>Server: socket.on (joinRoom): set currentRoom
+    Server-->>Client: socket.currentRoom | Join room success
+    
+    User->>Client: Send new message
+    Client->>Server: socket.on(message:new)
+    Server-->>FirebaseDB: query insert Message
+    Server-->>FirebaseDB: query update Room { roomId, lastMsg }
+    Server->>Client: emit to room (message:update)
+    Client-->>User: Hook update state (messages): push
+    Server-->>FirebaseDB: query get Rooms
+    FirebaseDB-->>Server: return all Rooms
+    Server->>Client: emit global (newRoomList)
+    Client-->>User: Hook update state (roomList)
+    end
+
+    Server->>Server: Check autoreply value
+
+    alt if autoreply is true
+
+        Server->>Server: Layer-1 Message Validation
+        
+        alt if validate OK
+
+        Server-->>FirebaseDB: query get Messages (roomId)
+        FirebaseDB-->>Server: return queried Messages
+        Server-->>OpenAI: REQ: Prompt (Messages, userMsg)
+        OpenAI-->>Server: RES: GPT Model Reply
+        Server-->>FirebaseDB: query insert Message
+        Server->>Client: emit to room (message:update): GPT Reply
+        Client-->>User: Hook update state (messages): push
+        Server-->>FirebaseDB: query get Rooms
+        FirebaseDB-->>Server: return all Rooms
+        Server->>Client: emit global (newRoomList)
+        Client-->>User: Hook update state (roomList)
+        
+        else validate NOT OK
+
+        Server->>Client: emit to room (message:autoreply): Rejection template
+        Client-->>User: Hook update state (messages): push
+        Server-->>FirebaseDB: query get Rooms
+        FirebaseDB-->>Server: return all Rooms
+        Server->>Client: emit global (newRoomList)
+        Client-->>User: Hook update state (roomList)
+        
+        end
+
+    end
+    
+    User->>Client: Logout
+    Client->>Server: Socket: Close connection
+    Server-->>Client: Socket: Connection closed

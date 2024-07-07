@@ -1,0 +1,20 @@
+{
+  "development": {
+    "username": "postgres.tvnnlzcnvqzkupgcsodw",
+    "password": "*Deathstroke001!",
+    "database": "postgres",
+    "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+    "dialect": "postgres",
+    "logging": false
+  },
+  "test": {
+    "username": "postgres",
+    "password": "postgres",
+    "database": "serviceSync_test",
+    "host": "localhost",
+    "dialect": "postgres"
+  },
+  "production": {
+    "use_env_variable": "DATABASE_URL"
+  }
+}
